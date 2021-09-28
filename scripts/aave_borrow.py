@@ -25,7 +25,16 @@ def main():
     dai_eth_price = get_asset_price(config['networks'][network.show_active()]["dai_eth_price_feed"])
     amount_of_dai_to_borrow = (1 / dai_eth_price) * (borrowable_eth * 0.95)
     print(f"We are going to borrow {amount_of_dai_to_borrow}")
-    borrow_dai = lending_pool.borrow(amount_of_dai_to_borrow)
+    dai_address = config['networks'][network.show_active()]["dai_token"]
+    borrow_dai = lending_pool.borrow(dai_address, Web3.toWei(amount_of_dai_to_borrow, "ether"),
+                                     1,
+                                     0,
+                                     account.address, {"from" : account})
+    borrow_dai.wait(1)
+    print("We borrowed some ETH")
+    get_borrowable_data(lending_pool, account)
+    repay_all(Amount, lending_pool, account)
+    print("You just deposited, borrowed and repayed with Aave")
 
 
 def get_lending_pool():
@@ -69,3 +78,21 @@ def get_asset_price(price_feed_address):
     latest_price = dai_eth_price_feed.latestRoundData()[1]
     print(f"DAI/ETH price is {Web3.fromWei(latest_price, 'ether')}")
     return float(latest_price)
+
+
+def repay_all(amount, lending_pool, account):
+    approve_erc20(
+        Web3.toWei(amount, "ether"),
+        lending_pool,
+        config['network'][network.show_active()]["dai_token"],
+        account
+    )
+    repay_tx = lending_pool.repay(
+        config['network'][network.show_active()]["dai_token"],
+        amount,
+        1,
+        account.address,
+        {"from": account}
+    )
+    repay_tx.wait(1)
+    print("Repayed...!!!")
